@@ -1,3 +1,11 @@
+.main-title {
+	font-size: 5rem;
+}
+
+.error-message {
+	color: darkred;
+}
+
 .navbar-brand {
 	padding: 0px;
 }

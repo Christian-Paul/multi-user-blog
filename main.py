@@ -5,17 +5,30 @@ import logging
 import jinja2
 import re
 import time
+import hmac
+import random
+import string
+import hashlib
 
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), autoescape = True)
 
+class User(db.Model):
+  username = db.StringProperty(required = True) # TODO Don't allow duplicate username
+  password = db.StringProperty(required = True)
+  email = db.StringProperty()
+  joined = db.DateTimeProperty(auto_now_add = True)
+  # TODO add classmethod decorators to get by id
+  # TODO add classmethod decorators to get by name
+
 class Post(db.Model):
   subject = db.StringProperty(required = True)
   content = db.TextProperty(required = True)
   created = db.DateTimeProperty(auto_now_add = True)
-  author = db.StringProperty(default = 'Anonymous')
+  author = db.ReferenceProperty(User)
+  # TODO add classmethod decorators to get by id
 
 class Handler(webapp2.RequestHandler):
   def write(self, *a, **kw):
@@ -63,7 +76,7 @@ class NewPost(Handler):
 
       self.redirect('/post/' + post_id)
     else:
-      params['error_status'] = True
+      params['error_status'] = 'has-error'
 
       if len(content) <= 250:
         params['error_message'] = 'Post content must contain more than 250 characters'
@@ -85,6 +98,32 @@ def validate_email(email):
   # returns true if there is no email, or if there is an email that passes the regex
   return not email or EMAIL_RE.match(email)
 
+def make_salt():
+    return string.join([random.choice(string.letters) for x in range(5)], '')
+
+SECRET = 'DBB819D7DC166FC2FC45F4693F197'
+
+def hash_str(s):
+    return hmac.new(SECRET, s).hexdigest()
+
+def make_secure_val(s):
+    return str('%s|%s' % (s, hash_str(s)))
+
+def check_secure_val(h):
+    val = h.split('|')[0]
+    if h == make_secure_val(val):
+        return val
+
+def make_pw_hash(name, pw, salt = make_salt()):
+    hashed = hashlib.sha256(name + pw + salt).hexdigest()
+    return hashed + ',' + salt
+
+def valid_pw(name, pw, h):
+    hash, salt = h.split(',')
+    
+    if make_pw_hash(name, pw, salt) == h:
+        return True
+
 class SignupHandler(Handler):
   def get(self):
     self.render('signup.html')
@@ -104,7 +143,13 @@ class SignupHandler(Handler):
     valid_email = validate_email(email)
 
     if valid_username and valid_password and valid_verify and valid_email:
-      self.response.headers.add_header('Set-Cookie', 'username=%s; Path="/"' % str(username))
+      # TODO Don't allow duplicate username
+      # add user to database
+      u = User(username = username, password = make_pw_hash(username, password), email = email)
+      u.put()
+
+      # TODO abstract setting cookies to a login function 
+      self.response.headers.add_header('Set-Cookie', 'username=%s; Path="/"' % str(make_secure_val(username)))
       self.redirect('/welcome')
 
     else:
@@ -124,12 +169,20 @@ class SignupHandler(Handler):
 
 class WelcomeHandler(Handler):
   def get(self):
-    self.render('welcome.html', username=self.request.cookies.get('username'))
+    # validate cookie
+    # TODO make function for checking cookies on every page
+    username_cookie = self.request.cookies.get('username')
+    if username_cookie and check_secure_val(username_cookie):
+      username = username_cookie.split('|')[0]
+      self.render('welcome.html', username = username)
+    else:
+      self.redirect('/')
 
 
 app = webapp2.WSGIApplication([('/', MainPage), 
                               ('/newpost', NewPost),
                               ('/post/(\d+)', PostHandler),
                               ('/signup', SignupHandler),
+                              ('/welcome', WelcomeHandler)
                               ],
                               debug=True)

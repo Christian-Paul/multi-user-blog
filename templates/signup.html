@@ -1,0 +1,43 @@
+{% extends 'main.html' %}
+
+{% block title %}Sign Up{% endblock %}
+
+{% block content %}
+	<form method='post' class='form-horizontal'>
+		<h1 class='main-title text-center'>Sign Up</h1>
+		<div class='form-group {{ "has-error" if username_error }}'>
+			<label class='control-label col-sm-3' for='username'>Username:</label>
+			<div class='col-sm-6'>
+				<input required type="text" name="username" class='form-control' value={{username}}>
+			</div>
+			<span class='error-message'>{{username_error}}</span>
+		</div>
+
+		<div class='form-group {{ "has-error" if password_error }}'>
+			<label for='password' class='control-label col-sm-3'>Password:</label>
+			<div class='col-sm-6'>
+				<input required type="password" class='form-control' name="password">
+			</div>
+			<span class='error-message'>{{password_error}}</span>
+		</div>
+
+		<div class='form-group {{ "has-error" if verify_error }}'>
+			<label for='verify' class='control-label col-sm-3'>Verify Password:</label>
+			<div class='col-sm-6'>
+				<input required type="password" class='form-control' name="verify">
+			</div>
+			<span class='error-message'>{{verify_error}}</span>
+		</div>
+
+		<div class='form-group {{ "has-error" if email_error }}'>
+			<label for='email' class='control-label col-sm-3'>Email (optional):</label>
+			<div class='col-sm-6'>
+				<input type="email" name="email" class='form-control' value={{email}}>
+			</div>
+			<span class='error-message'>{{email_error}}</span>
+		</div>
+		<div class="text-center">
+			<button class='btn btn-primary'>Submit</button>
+		</div>
+	</form>
+{% endblock %}
