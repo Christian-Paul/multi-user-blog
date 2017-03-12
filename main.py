@@ -72,9 +72,64 @@ class NewPost(Handler):
 
       self.render('new-post.html', **params)
 
+USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+def validate_username(username):
+  return username and USER_RE.match(username)
+
+PASSWORD_RE = re.compile(r"^.{3,20}$")
+def validate_password(password):
+  return password and PASSWORD_RE.match(password)
+
+EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
+def validate_email(email):
+  # returns true if there is no email, or if there is an email that passes the regex
+  return not email or EMAIL_RE.match(email)
+
+class SignupHandler(Handler):
+  def get(self):
+    self.render('signup.html')
+
+  def post(self):
+    username = self.request.get('username')
+    password = self.request.get('password')
+    verify = self.request.get('verify')
+    email = self.request.get('email')
+
+    params = dict(username = username,
+                  email = email)
+
+    valid_username = validate_username(username)
+    valid_password = validate_password(password)
+    valid_verify = password == verify
+    valid_email = validate_email(email)
+
+    if valid_username and valid_password and valid_verify and valid_email:
+      self.response.headers.add_header('Set-Cookie', 'username=%s; Path="/"' % str(username))
+      self.redirect('/welcome')
+
+    else:
+      if not valid_username:
+        params['username_error'] = 'Invalid username'
+
+      if not valid_password:
+        params['password_error'] = 'Invalid password'
+
+      elif not valid_verify:
+        params['verify_error'] = 'Passwords do not match'
+
+      if not valid_email:
+        params['email_error'] = 'Invalid email'
+
+      self.render('signup.html', **params)
+
+class WelcomeHandler(Handler):
+  def get(self):
+    self.render('welcome.html', username=self.request.cookies.get('username'))
+
 
 app = webapp2.WSGIApplication([('/', MainPage), 
                               ('/newpost', NewPost),
-                              ('/post/(\d+)', PostHandler)
+                              ('/post/(\d+)', PostHandler),
+                              ('/signup', SignupHandler),
                               ],
                               debug=True)
