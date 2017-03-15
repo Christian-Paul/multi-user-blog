@@ -86,6 +86,9 @@ class NewPost(Handler):
 
       self.render('new-post.html', **params)
 
+def get_user_by_name(username):
+  return db.GqlQuery('SELECT * FROM User WHERE username = :1', username).get() 
+
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def validate_username(username):
   return username and USER_RE.match(username)
@@ -178,6 +181,28 @@ class SignupHandler(Handler):
 
       self.render('signup.html', **params)
 
+class LoginHandler(Handler):
+  def get(self):
+    self.render('login.html')
+
+  def post(self):
+    username = self.request.get('username')
+    password = self.request.get('password')
+
+    # validate user
+    user = get_user_by_name(username)
+    if user:
+      valid_password = valid_pw(username, password, user.password)
+
+      # if successful, set cookie and redirect to welcome page
+      if valid_password:
+        self.response.headers.add_header('Set-Cookie', 'username=%s; Path="/"' % str(make_secure_val(username)))
+        self.redirect('/welcome')
+
+    # if fail, return to login page with error message
+    error_message = 'Invalid username or password'
+    self.render('login.html', username = username, error_message = error_message)
+
 class WelcomeHandler(Handler):
   def get(self):
     # validate cookie
@@ -194,6 +219,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
                               ('/newpost', NewPost),
                               ('/post/(\d+)', PostHandler),
                               ('/signup', SignupHandler),
-                              ('/welcome', WelcomeHandler)
+                              ('/welcome', WelcomeHandler),
+                              ('/login', LoginHandler)
                               ],
                               debug=True)
