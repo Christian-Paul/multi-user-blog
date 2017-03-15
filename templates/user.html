@@ -8,13 +8,12 @@
 {% endblock %}
 
 {% block content %}
-	<h1 class='text-center blog-title'>Recent Blog Entries</h1>
+	<h1 class='text-center blog-title'>{{author}}'s Blog Entries</h1>
 	<hr>
 	{% for post in posts %}
 		<div class="blog-entry">
 			<div class='blog-preview-header'>
 				<h2><a href=/post/{{post.key().id()}}>{{post.subject}}</a></h2>
-				<a href=/users/{{post.author.username}}>{{post.author.username}}</a>
 			</div>
 			<div>{{post.content[:500] + '...'}}</div>
 		</div>

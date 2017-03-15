@@ -23,6 +23,9 @@ class User(db.Model):
   # TODO add classmethod decorators to get by id
   # TODO add classmethod decorators to get by name
 
+def get_all_users():
+  return db.GqlQuery('SELECT * FROM User ')
+
 def get_user_by_name(username):
   return db.GqlQuery('SELECT * FROM User WHERE username = :1', username).get()
 
@@ -60,6 +63,7 @@ class BlogHandler(Handler):
     webapp2.RequestHandler.initialize(self, *a, **kw)
 
     self.authenticated = False
+    self.user = None
 
     if self.read_secure_cookie('username'):
       un = self.read_secure_cookie('username').split('|')[0]
@@ -75,22 +79,23 @@ class MainPage(BlogHandler):
   def get(self):
     posts = db.GqlQuery('SELECT * FROM Post ORDER BY created DESC')
 
-    logging.info(self.authenticated)
-
-    self.render('index.html', posts = posts, authenticated = self.authenticated)
+    self.render('index.html', posts = posts, authenticated = self.authenticated, user = self.user)
 
 class PostHandler(BlogHandler):
   def get(self, post_id):
     post = Post.get_by_id(int(post_id))
 
     if post:
-      self.render('post.html', post = post, authenticated = self.authenticated)
+      self.render('post.html', post = post, authenticated = self.authenticated, user = self.user)
     else:
       self.error(404)
 
 class NewPost(BlogHandler):
   def get(self):
-    self.render('new-post.html', authenticated = self.authenticated)
+    if not self.authenticated:
+      self.redirect('/signup')
+
+    self.render('new-post.html', authenticated = self.authenticated, user = self.user)
 
   def post(self):
     subject = self.request.get('subject')
@@ -100,8 +105,8 @@ class NewPost(BlogHandler):
                   content = content, 
                   authenticated = self.authenticated)
 
-    if subject and content and len(content) > 250:
-      p = Post(subject = subject, content = content)
+    if subject and content and len(content) > 250 and self.authenticated:
+      p = Post(subject = subject, content = content, author = self.user)
       p.put()
       post_id = str(p.key().id())
 
@@ -161,7 +166,10 @@ def valid_pw(name, pw, h):
 
 class SignupHandler(BlogHandler):
   def get(self):
-    self.render('signup.html', authenticated = self.authenticated)
+    if self.authenticated:
+      self.redirect('/users/%s' % self.user.username)
+
+    self.render('signup.html')
 
   def post(self):
     username = self.request.get('username')
@@ -208,6 +216,9 @@ class SignupHandler(BlogHandler):
 
 class LoginHandler(BlogHandler):
   def get(self):
+    if self.authenticated:
+      self.redirect('/users/%s' % self.user.username)
+
     self.render('login.html')
 
   def post(self):
@@ -235,7 +246,8 @@ class WelcomeHandler(BlogHandler):
     username_cookie = self.request.cookies.get('username')
     if username_cookie and check_secure_val(username_cookie):
       username = username_cookie.split('|')[0]
-      self.render('welcome.html', username = username, authenticated = self.authenticated)
+
+      self.render('welcome.html', username = username, authenticated = self.authenticated, user = self.user)
     else:
       self.redirect('/')
 
@@ -244,6 +256,23 @@ class LogoutHandler(BlogHandler):
     self.response.headers.add_header('Set-Cookie', 'username=; Path="/"')
     self.redirect('/signup')
 
+class AllUsersHandler(BlogHandler):
+  def get(self):
+    users = get_all_users()
+    self.render('user-index.html', users = users, authenticated = self.authenticated, user = self.user)
+
+class UserHandler(BlogHandler):
+  def get(self, username):
+    user = get_user_by_name(username)
+
+    if user:
+      posts = user.post_set
+      author = posts.get().author.username
+
+      self.render('user.html', posts = posts, author = author, authenticated = self.authenticated, user = self.user)
+    else:
+      self.error(404)
+
 
 app = webapp2.WSGIApplication([('/', MainPage), 
                               ('/newpost', NewPost),
@@ -251,6 +280,8 @@ app = webapp2.WSGIApplication([('/', MainPage),
                               ('/signup', SignupHandler),
                               ('/welcome', WelcomeHandler),
                               ('/login', LoginHandler),
-                              ('/logout', LogoutHandler)
+                              ('/logout', LogoutHandler),
+                              ('/users/', AllUsersHandler),
+                              ('/users/(.+)', UserHandler)
                               ],
                               debug=True)

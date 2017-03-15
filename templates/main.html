@@ -22,6 +22,8 @@
 				</div>
 				<div class="navbar-header navbar-right">
 					{% if authenticated %}
+						<a class="navbar-link blog-link" href='/newpost'>New Entry</a>
+						<a class="navbar-link blog-link" href=/users/{{user.username}}>My Blog</a>
 						<a class='btn btn-default navbar-btn' href="/logout">Log Out</a>
 					{% else %}
 						<a class='btn btn-success navbar-btn' href="/login">Log In</a>
