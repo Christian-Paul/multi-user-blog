@@ -45,6 +45,9 @@ class MainPage(Handler):
   def get(self):
     posts = db.GqlQuery('SELECT * FROM Post ORDER BY created DESC')
 
+    logging.info('Hello from main page')
+    logging.info(posts)
+
     self.render('index.html', posts = posts)
 
 class PostHandler(Handler):
@@ -76,8 +79,6 @@ class NewPost(Handler):
 
       self.redirect('/post/' + post_id)
     else:
-      params['error_status'] = 'has-error'
-
       if len(content) <= 250:
         params['error_message'] = 'Post content must contain more than 250 characters'
       else:
@@ -88,6 +89,10 @@ class NewPost(Handler):
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def validate_username(username):
   return username and USER_RE.match(username)
+
+def check_original_username(username):
+  if db.GqlQuery('SELECT * FROM User WHERE username = :1', username).count() == 0:
+    return True
 
 PASSWORD_RE = re.compile(r"^.{3,20}$")
 def validate_password(password):
@@ -138,12 +143,15 @@ class SignupHandler(Handler):
                   email = email)
 
     valid_username = validate_username(username)
+    original_username = check_original_username(username)
     valid_password = validate_password(password)
     valid_verify = password == verify
     valid_email = validate_email(email)
 
-    if valid_username and valid_password and valid_verify and valid_email:
-      # TODO Don't allow duplicate username
+    logging.info('orginal returns: ')
+    logging.info(original_username)
+
+    if valid_username and original_username and valid_password and valid_verify and valid_email:
       # add user to database
       u = User(username = username, password = make_pw_hash(username, password), email = email)
       u.put()
@@ -155,6 +163,9 @@ class SignupHandler(Handler):
     else:
       if not valid_username:
         params['username_error'] = 'Invalid username'
+
+      if not original_username:
+        params['username_error'] = 'Username already taken'
 
       if not valid_password:
         params['password_error'] = 'Invalid password'
