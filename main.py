@@ -84,11 +84,27 @@ class MainPage(BlogHandler):
 class PostHandler(BlogHandler):
   def get(self, post_id):
     post = Post.get_by_id(int(post_id))
+    logging.info(self.user)
 
     if post:
       self.render('post.html', post = post, authenticated = self.authenticated, user = self.user)
     else:
       self.error(404)
+  def delete(self, post_id):
+    # TODO validate that request is from user who owns this post
+    logging.info('got a delete request!')
+    #Post.get_by_id(int(post_id)).delete()
+    # TODO bug: user was nonestype
+    logging.info(self.user)
+    username = None
+    self.response.headers['Content-Type'] = 'text'
+    if self.user:
+      username = self.user.username
+      logging.info(self.user.username)
+      self.write('Success!')
+    else:
+      self.write('Deleted, user not found')
+
 
 class NewPost(BlogHandler):
   def get(self):
@@ -267,9 +283,8 @@ class UserHandler(BlogHandler):
 
     if user:
       posts = user.post_set
-      author = posts.get().author.username
 
-      self.render('user.html', posts = posts, author = author, authenticated = self.authenticated, user = self.user)
+      self.render('user.html', posts = posts, author = username, authenticated = self.authenticated, user = self.user)
     else:
       self.error(404)
 

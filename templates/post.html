@@ -3,6 +3,44 @@
 {% block title %}{{ post.subject }}{% endblock %}
 
 {% block content %}
-	<h1>{{post.subject}}</h1>
-	<p>{{post.content}}</p>
+	<div class="post-heading">
+		<h1 id='post-subject'>{{post.subject}}</h1>
+		{% if post.author.username == user.username %}
+			<button class='delete-button' id='some-id'>Delete</button>
+			<button class='edit-button'>Edit</button>
+		{% else %}
+			<div class='like-button'>Like</div>
+		{% endif %}	
+	</div>
+	<p id='post-content'>{{post.content}}</p>
+	<script type="text/javascript">
+		var deleteButton = document.getElementsByClassName('delete-button')[0];
+		var editButton = document.getElementsByClassName('edit-button')[0];
+		var likeButton = document.getElementsByClassName('like-button')[0];
+		var currentUrl = window.location.pathname;
+		var originalSubject = document.getElementById('post-subject');
+		var originalContent = document.getElementById('post-content');
+		var originalSubjectText = document.getElementById('post-subject').textContent;
+		var originalContentText = document.getElementById('post-content').textContent;
+
+
+		deleteButton.addEventListener('click', function() {
+			fetch(currentUrl, {
+				method: 'delete'
+			})
+			.then(function(res) {
+				if(res.ok) {
+					console.log(res)
+					// TODO redirect to user's blog page
+				}
+			})
+		})
+
+		editButton.addEventListener('click', function() {
+			console.log(originalContentText)
+			originalContent.remove();
+			originalSubject.remove();
+
+		})
+	</script>
 {% endblock %}
