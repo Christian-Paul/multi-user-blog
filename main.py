@@ -23,6 +23,9 @@ class User(db.Model):
   # TODO add classmethod decorators to get by id
   # TODO add classmethod decorators to get by name
 
+def get_user_by_name(username):
+  return db.GqlQuery('SELECT * FROM User WHERE username = :1', username).get()
+
 class Post(db.Model):
   subject = db.StringProperty(required = True)
   content = db.TextProperty(required = True)
@@ -41,34 +44,61 @@ class Handler(webapp2.RequestHandler):
   def render(self, template, **kw):
     self.write(self.render_str(template, **kw))
 
-class MainPage(Handler):
+class BlogHandler(Handler):
+  def read_secure_cookie(self, name):
+    cookie_val = self.request.cookies.get(name)
+    if cookie_val and check_secure_val(cookie_val):
+      return cookie_val
+
+  def set_secure_cookie(self, name, val):
+    cookie_val = make_secure_val(val)
+    self.response.headers.add_header(
+                                     'Set-Cookie',
+                                     '%s=%s' % (name, cookie_val))
+
+  def initialize(self, *a, **kw):
+    webapp2.RequestHandler.initialize(self, *a, **kw)
+
+    self.authenticated = False
+
+    if self.read_secure_cookie('username'):
+      un = self.read_secure_cookie('username').split('|')[0]
+
+      # if first and second arguments are both true, set self.user to user object (second argument)
+      self.user = un and get_user_by_name(un)
+
+      if self.user:
+        self.authenticated = True
+
+
+class MainPage(BlogHandler):
   def get(self):
     posts = db.GqlQuery('SELECT * FROM Post ORDER BY created DESC')
 
-    logging.info('Hello from main page')
-    logging.info(posts)
+    logging.info(self.authenticated)
 
-    self.render('index.html', posts = posts)
+    self.render('index.html', posts = posts, authenticated = self.authenticated)
 
-class PostHandler(Handler):
+class PostHandler(BlogHandler):
   def get(self, post_id):
     post = Post.get_by_id(int(post_id))
 
     if post:
-      self.render('post.html', post = post)
+      self.render('post.html', post = post, authenticated = self.authenticated)
     else:
       self.error(404)
 
-class NewPost(Handler):
+class NewPost(BlogHandler):
   def get(self):
-    self.render('new-post.html')
+    self.render('new-post.html', authenticated = self.authenticated)
 
   def post(self):
     subject = self.request.get('subject')
     content = self.request.get('content')
 
     params = dict(subject = subject,
-                  content = content)
+                  content = content, 
+                  authenticated = self.authenticated)
 
     if subject and content and len(content) > 250:
       p = Post(subject = subject, content = content)
@@ -85,9 +115,6 @@ class NewPost(Handler):
         params['error_message'] = 'An error occurred'
 
       self.render('new-post.html', **params)
-
-def get_user_by_name(username):
-  return db.GqlQuery('SELECT * FROM User WHERE username = :1', username).get() 
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def validate_username(username):
@@ -132,9 +159,9 @@ def valid_pw(name, pw, h):
     if make_pw_hash(name, pw, salt) == h:
         return True
 
-class SignupHandler(Handler):
+class SignupHandler(BlogHandler):
   def get(self):
-    self.render('signup.html')
+    self.render('signup.html', authenticated = self.authenticated)
 
   def post(self):
     username = self.request.get('username')
@@ -143,16 +170,14 @@ class SignupHandler(Handler):
     email = self.request.get('email')
 
     params = dict(username = username,
-                  email = email)
+                  email = email, 
+                  authenticated = self.authenticated)
 
     valid_username = validate_username(username)
     original_username = check_original_username(username)
     valid_password = validate_password(password)
     valid_verify = password == verify
     valid_email = validate_email(email)
-
-    logging.info('orginal returns: ')
-    logging.info(original_username)
 
     if valid_username and original_username and valid_password and valid_verify and valid_email:
       # add user to database
@@ -181,7 +206,7 @@ class SignupHandler(Handler):
 
       self.render('signup.html', **params)
 
-class LoginHandler(Handler):
+class LoginHandler(BlogHandler):
   def get(self):
     self.render('login.html')
 
@@ -201,20 +226,20 @@ class LoginHandler(Handler):
 
     # if fail, return to login page with error message
     error_message = 'Invalid username or password'
-    self.render('login.html', username = username, error_message = error_message)
+    self.render('login.html', username = username, error_message = error_message, authenticated = self.authenticated)
 
-class WelcomeHandler(Handler):
+class WelcomeHandler(BlogHandler):
   def get(self):
     # validate cookie
     # TODO make function for checking cookies on every page
     username_cookie = self.request.cookies.get('username')
     if username_cookie and check_secure_val(username_cookie):
       username = username_cookie.split('|')[0]
-      self.render('welcome.html', username = username)
+      self.render('welcome.html', username = username, authenticated = self.authenticated)
     else:
       self.redirect('/')
 
-class LogoutHandler(Handler):
+class LogoutHandler(BlogHandler):
   def get(self):
     self.response.headers.add_header('Set-Cookie', 'username=; Path="/"')
     self.redirect('/signup')

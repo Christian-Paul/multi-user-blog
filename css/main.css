@@ -36,3 +36,7 @@ footer > div {
 footer > div > p {
 	margin: 0;
 }
+
+.text-group {
+	margin-top: 1rem;
+}
