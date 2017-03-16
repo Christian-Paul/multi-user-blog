@@ -33,11 +33,28 @@
 			{% else %}
 				<button class='btn btn-default like-button'>
 					<span class="glyphicon glyphicon-heart" aria-hidden="true"></span>
-					<span>You like this!</span>
+					{% if post.likes %}
+						<span>You like this!</span>
+					{% else %}
+						<span>Like</span>
+					{% endif %}
 				</button>
+				Likes: {{post.likes|length}}
 			{% endif %}	
 			<p id='post-content'>{{post.content}}</p>
 		{% endif %}
+	</div>
+	<div class="comments">
+		<form method='post' action='{{post.key().id()}}/comment'>
+			<h3>Add a Comment</h3>
+			<div class='form-group {{ "has-error" if error_message }}'>
+				<textarea required rows='10' class='form-control' name='content'>{{content}}</textarea>
+			</div>
+			{% if error_message %}
+				<div class='alert alert-danger' role='alert'>{{error_message}}</div>
+			{% endif %}
+			<button class='btn btn-primary'>Submit</button>
+		</form>
 	</div>
 	<script type="text/javascript">
 		var deleteButton = document.getElementsByClassName('delete-button')[0];
@@ -91,6 +108,21 @@
 						alert(res)
 						console.log(res)
 						// TODO redirect to post
+					}
+				})
+			})
+		}
+
+		if(likeButton) {
+			likeButton.addEventListener('click', function() {
+				$.ajax(currentUrl + '/like', {
+					method: 'put'
+				})
+				.done(function(res) {
+					if(res) {
+						alert(res)
+						console.log(res)
+						// TODO update likes
 					}
 				})
 			})

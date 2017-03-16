@@ -35,6 +35,7 @@ class Post(db.Model):
   content = db.TextProperty(required = True)
   created = db.DateTimeProperty(auto_now_add = True)
   author = db.ReferenceProperty(User)
+  likes = db.ListProperty(db.Key)
   # TODO add classmethod decorators to get by id
 
 class Handler(webapp2.RequestHandler):
@@ -302,15 +303,43 @@ class UserHandler(BlogHandler):
     else:
       self.error(404)
 
+class LikePostHandler(BlogHandler):
+  def put(self, post_id):
+    p = Post.get_by_id(int(post_id))
+
+    user_key = self.user.key()
+
+    if user_key in p.likes:
+      p.likes.remove(user_key)
+      logging.info('unliked!')
+    else:
+      p.likes.append(user_key)
+      logging.info('liked!')
+
+    p.put()
+    time.sleep(0.1)
+
+    self.response.headers['Content-Type'] = 'text'
+    self.write('Success!')
+
+class NewCommentHandler(BlogHandler):
+  def post(self, post_id):
+    logging.info('got comment post!')
+
+    p = Post.get_by_id(int(post_id))
+
+    logging.info(p)
 
 app = webapp2.WSGIApplication([('/', MainPage), 
                               ('/newpost', NewPost),
                               ('/post/(\d+)', PostHandler),
+                              ('/post/(\d+)/like', LikePostHandler),
                               ('/signup', SignupHandler),
                               ('/welcome', WelcomeHandler),
                               ('/login', LoginHandler),
                               ('/logout', LogoutHandler),
                               ('/users/', AllUsersHandler),
-                              ('/users/(.+)', UserHandler)
+                              ('/users/(.+)', UserHandler),
+                              ('/post/(\d+)/comment', NewCommentHandler),
                               ],
                               debug=True)
