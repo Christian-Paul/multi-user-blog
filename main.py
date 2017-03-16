@@ -342,6 +342,16 @@ class NewCommentHandler(BlogHandler):
 
     self.redirect('/post/%s' % post_id)
 
+class CommentHandler(BlogHandler):
+  def delete(self, post_id, comment_id):
+    logging.info('got delete request!')
+    logging.info(post_id)
+    logging.info(comment_id)
+
+    Comment.get_by_id(int(comment_id)).delete()
+
+    self.response.headers['Content-Type'] = 'text'
+    self.write('Success!')
 
 app = webapp2.WSGIApplication([('/', MainPage), 
                               ('/newpost', NewPost),
@@ -354,5 +364,6 @@ app = webapp2.WSGIApplication([('/', MainPage),
                               ('/users/', AllUsersHandler),
                               ('/users/(.+)', UserHandler),
                               ('/post/(\d+)/comment', NewCommentHandler),
+                              ('/post/(\d+)/comment/(\d+)', CommentHandler)
                               ],
                               debug=True)

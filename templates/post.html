@@ -32,10 +32,11 @@
 				<button class='btn btn-danger delete-button' id='some-id'>Delete</button>
 			{% else %}
 				<button class='btn btn-default like-button'>
-					<span class="glyphicon glyphicon-heart" aria-hidden="true"></span>
 					{% if post.likes %}
+						<span class="glyphicon glyphicon-heart" aria-hidden="true"></span>
 						<span>You like this!</span>
 					{% else %}
+						<span class="glyphicon glyphicon-heart-empty" aria-hidden="true"></span>
 						<span>Like</span>
 					{% endif %}
 				</button>
@@ -44,25 +45,41 @@
 			<p id='post-content'>{{post.content}}</p>
 		{% endif %}
 	</div>
+	<form method='post' action='{{post.key().id()}}/comment'>
+		<h3>Add a Comment</h3>
+		<div class='form-group {{ "has-error" if error_message }}'>
+			<textarea required rows='10' class='form-control' name='content'>{{content}}</textarea>
+		</div>
+		{% if error_message %}
+			<div class='alert alert-danger' role='alert'>{{error_message}}</div>
+		{% endif %}
+		<button class='btn btn-primary'>Submit</button>
+	</form>
 	<div class="comments">
-		<form method='post' action='{{post.key().id()}}/comment'>
-			<h3>Add a Comment</h3>
-			<div class='form-group {{ "has-error" if error_message }}'>
-				<textarea required rows='10' class='form-control' name='content'>{{content}}</textarea>
-			</div>
-			{% if error_message %}
-				<div class='alert alert-danger' role='alert'>{{error_message}}</div>
-			{% endif %}
-			<button class='btn btn-primary'>Submit</button>
-		</form>
 		{% for comment in comments %}
-			{{comment.author.username}}
-			{{comment.created}}
-			{{comment.content}}
+			<div class="comment well" id='{{comment.key().id()}}'>
+				<div class="comment-header">
+					<h3 class="comment-author">
+						{{comment.author.username}}					
+					</h4>
+					<p class="comment-time">
+						{{comment.created.strftime('%Y-%m-%d %H:%M')}}					
+					</p>
+				</div>
+				<p class="comment-content">
+					{{comment.content}}				
+				</p>
+				{% if comment.author.username == user.username %}
+					<div class="comment-settings">
+						<span class="glyphicon glyphicon-remove delete-comment" aria-hidden="true"></span>
+					</div>
+				{% endif %}
+			</div>
 		{% endfor %}
 	</div>
 	<script type="text/javascript">
 		var deleteButton = document.getElementsByClassName('delete-button')[0];
+		var deleteComment = document.getElementsByClassName('delete-comment')[0];
 		var editButton = document.getElementsByClassName('edit-button')[0];
 		var likeButton = document.getElementsByClassName('like-button')[0];
 		var cancelPostEdit = document.getElementsByClassName('cancel-post-edit')[0];
@@ -128,6 +145,23 @@
 						alert(res)
 						console.log(res)
 						// TODO update likes
+					}
+				})
+			})
+		}
+
+		if(deleteComment) {
+			deleteComment.addEventListener('click', function() {
+				commentId = this.parentElement.parentElement.id;
+
+				$.ajax(currentUrl + '/comment/' + commentId, {
+					method: 'delete'
+				})
+				.done(function(res) {
+					if(res) {
+						alert(res)
+						console.log(res)
+						// TODO refresh page
 					}
 				})
 			})
