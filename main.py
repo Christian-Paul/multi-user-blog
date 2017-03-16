@@ -344,11 +344,19 @@ class NewCommentHandler(BlogHandler):
 
 class CommentHandler(BlogHandler):
   def delete(self, post_id, comment_id):
-    logging.info('got delete request!')
-    logging.info(post_id)
-    logging.info(comment_id)
-
     Comment.get_by_id(int(comment_id)).delete()
+
+    self.response.headers['Content-Type'] = 'text'
+    self.write('Success!')
+
+  def put(self, post_id, comment_id):
+
+    req_data = json.loads(self.request.body)
+    c = Comment.get_by_id(int(comment_id))
+    c.content = req_data['content']
+
+    c.put()
+    time.sleep(0.1)
 
     self.response.headers['Content-Type'] = 'text'
     self.write('Success!')

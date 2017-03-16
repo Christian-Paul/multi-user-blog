@@ -66,12 +66,15 @@
 						{{comment.created.strftime('%Y-%m-%d %H:%M')}}					
 					</p>
 				</div>
-				<p class="comment-content">
-					{{comment.content}}				
-				</p>
+				<p class="comment-content">{{comment.content}}</p>
 				{% if comment.author.username == user.username %}
-					<div class="comment-settings">
+					<div class="comment-settings-default">
 						<span class="glyphicon glyphicon-remove delete-comment" aria-hidden="true"></span>
+						<span class="glyphicon glyphicon-pencil edit-comment" aria-hidden="true"></span>
+					</div>
+					<div class="comment-settings-editing hide">
+						<button class='update-comment btn btn-primary'>Update</button>
+						<button class='cancel-comment-edit btn btn-default'>Cancel</button>
 					</div>
 				{% endif %}
 			</div>
@@ -80,10 +83,15 @@
 	<script type="text/javascript">
 		var deleteButton = document.getElementsByClassName('delete-button')[0];
 		var deleteComment = document.getElementsByClassName('delete-comment')[0];
+		var editComment = document.getElementsByClassName('edit-comment')[0];
+		var cancelEditComment = document.getElementsByClassName('cancel-comment-edit')[0];
+		var updateComment = document.getElementsByClassName('update-comment')[0];
 		var editButton = document.getElementsByClassName('edit-button')[0];
 		var likeButton = document.getElementsByClassName('like-button')[0];
 		var cancelPostEdit = document.getElementsByClassName('cancel-post-edit')[0];
 		var updatePost = document.getElementsByClassName('update-post')[0];
+		var defaultCommentSettings = document.getElementsByClassName('comment-settings-default')[0];
+		var editingCommentSettings = document.getElementsByClassName('comment-settings-editing')[0];
 		var currentUrl = window.location.pathname;
 
 		if(deleteButton) {
@@ -156,6 +164,62 @@
 
 				$.ajax(currentUrl + '/comment/' + commentId, {
 					method: 'delete'
+				})
+				.done(function(res) {
+					if(res) {
+						alert(res)
+						console.log(res)
+						// TODO refresh page
+					}
+				})
+			})
+		}
+
+		if(editComment) {
+			editComment.addEventListener('click', function() {
+				commentId = this.parentElement.parentElement.id;
+				commentOld = this.parentElement.previousSibling.previousSibling;
+				commentContent = commentOld.textContent;
+				defaultCommentSettings.classList.add('hide');
+				editingCommentSettings.classList.remove('hide');
+
+				var commentInput = document.createElement('textarea');
+				commentInput.classList.add('comment-content');
+				commentInput.classList.add('form-control');
+				commentInput.appendChild(document.createTextNode(commentContent));
+				// make editing comment interface
+				commentOld.replaceWith(commentInput)
+			})
+		}
+
+		if(cancelEditComment) {
+			cancelEditComment.addEventListener('click', function() {
+				commentId = this.parentElement.parentElement.id;
+				commentOld = this.parentElement.previousSibling.previousSibling.previousSibling.previousSibling;
+				commentContent = commentOld.value;
+				defaultCommentSettings.classList.remove('hide');
+				editingCommentSettings.classList.add('hide');
+
+				var commentParagraph = document.createElement('p');
+				commentParagraph.classList.add('comment-content');
+				commentParagraph.appendChild(document.createTextNode(commentContent));
+				// make editing comment interface
+				commentOld.replaceWith(commentParagraph)
+			})
+		}
+
+		if(updateComment) {
+			updateComment.addEventListener('click', function() {
+				commentId = this.parentElement.parentElement.id;
+				commentOld = this.parentElement.previousSibling.previousSibling.previousSibling.previousSibling;
+				commentContent = commentOld.value;
+
+				$.ajax(currentUrl + '/comment/' + commentId, {
+					method: 'put',
+					headers: {'Content-Type': 'application/json'},
+					data: JSON.stringify({
+						'content': commentContent
+					})
 				})
 				.done(function(res) {
 					if(res) {
