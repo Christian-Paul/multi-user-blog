@@ -2,45 +2,99 @@
 
 {% block title %}{{ post.subject }}{% endblock %}
 
+{% block head %}
+	{{ super() }}
+	<link rel="stylesheet" type="text/css" href="/css/post.css">
+{% endblock %}
+
 {% block content %}
-	<div class="post-heading">
-		<h1 id='post-subject'>{{post.subject}}</h1>
-		{% if post.author.username == user.username %}
-			<button class='delete-button' id='some-id'>Delete</button>
-			<button class='edit-button'>Edit</button>
+	<div class="post-container">
+		{% if editing_target == 'post' %}
+			<h1 class='main-title'>Edit Post</h1>
+			<div class='form-group'>
+				<label for='subject'>Subject:</label>
+				<input required class='form-control subject-input' type="subject" name="subject" value='{{post.subject}}'>
+			</div>
+
+			<div class='form-group {{ "has-error" if error_message }}'>
+				<label for='content'>Content:</label>
+				<textarea required rows='20' class='content-input form-control' name='content'>{{post.content}}</textarea>
+			</div>
+			{% if error_message %}
+				<div class='alert alert-danger' role='alert'>{{error_message}}</div>
+			{% endif %}
+			<button class='update-post btn btn-primary'>Update</button>
+			<button class='cancel-post-edit btn btn-default'>Cancel</button>
 		{% else %}
-			<div class='like-button'>Like</div>
-		{% endif %}	
+			<h1 id='post-subject'>{{post.subject}}</h1>
+			{% if post.author.username == user.username %}
+				<button class='btn btn-primary edit-button'>Edit</button>
+				<button class='btn btn-danger delete-button' id='some-id'>Delete</button>
+			{% else %}
+				<button class='btn btn-default like-button'>
+					<span class="glyphicon glyphicon-heart" aria-hidden="true"></span>
+					<span>You like this!</span>
+				</button>
+			{% endif %}	
+			<p id='post-content'>{{post.content}}</p>
+		{% endif %}
 	</div>
-	<p id='post-content'>{{post.content}}</p>
 	<script type="text/javascript">
 		var deleteButton = document.getElementsByClassName('delete-button')[0];
 		var editButton = document.getElementsByClassName('edit-button')[0];
 		var likeButton = document.getElementsByClassName('like-button')[0];
+		var cancelPostEdit = document.getElementsByClassName('cancel-post-edit')[0];
+		var updatePost = document.getElementsByClassName('update-post')[0];
 		var currentUrl = window.location.pathname;
-		var originalSubject = document.getElementById('post-subject');
-		var originalContent = document.getElementById('post-content');
-		var originalSubjectText = document.getElementById('post-subject').textContent;
-		var originalContentText = document.getElementById('post-content').textContent;
 
-
-		deleteButton.addEventListener('click', function() {
-			fetch(currentUrl, {
-				method: 'delete'
+		if(deleteButton) {
+			deleteButton.addEventListener('click', function() {
+				fetch(currentUrl, {
+					method: 'delete'
+				})
+				.then(function(res) {
+					if(res.ok) {
+						console.log(res)
+						// TODO redirect to user's blog page
+					}
+				})
 			})
-			.then(function(res) {
-				if(res.ok) {
-					console.log(res)
-					// TODO redirect to user's blog page
-				}
+		}
+
+		if(editButton) {
+			editButton.addEventListener('click', function() {
+				window.location.href = currentUrl + '?' + 'editingTarget=post';
 			})
-		})
+		}
 
-		editButton.addEventListener('click', function() {
-			console.log(originalContentText)
-			originalContent.remove();
-			originalSubject.remove();
+		if(cancelPostEdit) {
+			cancelPostEdit.addEventListener('click', function() {
+				window.location.href = currentUrl.split('?')[0];
+			})
+		}
 
-		})
+		if(updatePost) {
+			updatePost.addEventListener('click', function() {
+				newSubject = document.getElementsByClassName('subject-input')[0].value;
+				newContent = document.getElementsByClassName('content-input')[0].value;
+
+				fetch(currentUrl, {
+					method: 'put',
+					headers: {'Content-Type': 'application/json'},
+					body: JSON.stringify({
+						'subject': newSubject,
+						'content': newContent
+					})
+				})
+				.then(function(res) {
+					if(res.ok) {
+						alert(res)
+						console.log(res)
+						// TODO redirect to post
+					}
+				})
+			})
+		}
+
 	</script>
 {% endblock %}

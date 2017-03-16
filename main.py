@@ -9,6 +9,7 @@ import hmac
 import random
 import string
 import hashlib
+import json
 
 from google.appengine.ext import db
 
@@ -84,16 +85,29 @@ class MainPage(BlogHandler):
 class PostHandler(BlogHandler):
   def get(self, post_id):
     post = Post.get_by_id(int(post_id))
-    logging.info(self.user)
 
     if post:
-      self.render('post.html', post = post, authenticated = self.authenticated, user = self.user)
+      editing_target = self.request.get('editingTarget')
+      self.render('post.html', post = post, authenticated = self.authenticated, editing_target = editing_target, user = self.user)
     else:
       self.error(404)
+
+  def put(self, post_id):
+    req_data = json.loads(self.request.body)
+
+    p = Post.get_by_id(int(post_id))
+    p.subject = req_data['subject']
+    p.content = req_data['content']
+
+    p.put()
+    time.sleep(0.1)
+
+    self.response.headers['Content-Type'] = 'text'
+    self.write('Success!')
+
   def delete(self, post_id):
     # TODO validate that request is from user who owns this post
-    logging.info('got a delete request!')
-    #Post.get_by_id(int(post_id)).delete()
+    # Post.get_by_id(int(post_id)).delete()
     # TODO bug: user was nonestype
     logging.info(self.user)
     username = None
