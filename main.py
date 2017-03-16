@@ -38,6 +38,12 @@ class Post(db.Model):
   likes = db.ListProperty(db.Key)
   # TODO add classmethod decorators to get by id
 
+class Comment(db.Model):
+  author = db.ReferenceProperty(User)
+  post = db.ReferenceProperty(Post)
+  content = db.TextProperty(required = True)
+  created = db.DateTimeProperty(auto_now_add = True)
+
 class Handler(webapp2.RequestHandler):
   def write(self, *a, **kw):
     self.response.out.write(*a, **kw)
@@ -86,10 +92,11 @@ class MainPage(BlogHandler):
 class PostHandler(BlogHandler):
   def get(self, post_id):
     post = Post.get_by_id(int(post_id))
+    comments = db.GqlQuery('SELECT * FROM Comment WHERE post = :1', post)
 
     if post:
       editing_target = self.request.get('editingTarget')
-      self.render('post.html', post = post, authenticated = self.authenticated, editing_target = editing_target, user = self.user)
+      self.render('post.html', post = post, authenticated = self.authenticated, editing_target = editing_target, user = self.user, comments = comments)
     else:
       self.error(404)
 
@@ -324,11 +331,17 @@ class LikePostHandler(BlogHandler):
 
 class NewCommentHandler(BlogHandler):
   def post(self, post_id):
-    logging.info('got comment post!')
+    content = self.request.get('content')
 
-    p = Post.get_by_id(int(post_id))
+    post = Post.get_by_id(int(post_id))
+    user = self.user
+    c = Comment(author = user, post = post, content = content)
 
-    logging.info(p)
+    c.put()
+    time.sleep(0.1)
+
+    self.redirect('/post/%s' % post_id)
+
 
 app = webapp2.WSGIApplication([('/', MainPage), 
                               ('/newpost', NewPost),

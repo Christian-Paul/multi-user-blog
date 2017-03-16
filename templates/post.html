@@ -55,6 +55,11 @@
 			{% endif %}
 			<button class='btn btn-primary'>Submit</button>
 		</form>
+		{% for comment in comments %}
+			{{comment.author.username}}
+			{{comment.created}}
+			{{comment.content}}
+		{% endfor %}
 	</div>
 	<script type="text/javascript">
 		var deleteButton = document.getElementsByClassName('delete-button')[0];
