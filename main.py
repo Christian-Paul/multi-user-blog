@@ -17,12 +17,10 @@ template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), autoescape = True)
 
 class User(db.Model):
-  username = db.StringProperty(required = True) # TODO Don't allow duplicate username
+  username = db.StringProperty(required = True)
   password = db.StringProperty(required = True)
   email = db.StringProperty()
   joined = db.DateTimeProperty(auto_now_add = True)
-  # TODO add classmethod decorators to get by id
-  # TODO add classmethod decorators to get by name
 
 def get_all_users():
   return db.GqlQuery('SELECT * FROM User ')
@@ -36,128 +34,12 @@ class Post(db.Model):
   created = db.DateTimeProperty(auto_now_add = True)
   author = db.ReferenceProperty(User)
   likes = db.ListProperty(db.Key)
-  # TODO add classmethod decorators to get by id
 
 class Comment(db.Model):
   author = db.ReferenceProperty(User)
   post = db.ReferenceProperty(Post)
   content = db.TextProperty(required = True)
   created = db.DateTimeProperty(auto_now_add = True)
-
-class Handler(webapp2.RequestHandler):
-  def write(self, *a, **kw):
-    self.response.out.write(*a, **kw)
-
-  def render_str(self, template, **params):
-    t = jinja_env.get_template(template)
-    return t.render(params)
-
-  def render(self, template, **kw):
-    self.write(self.render_str(template, **kw))
-
-class BlogHandler(Handler):
-  def read_secure_cookie(self, name):
-    cookie_val = self.request.cookies.get(name)
-    if cookie_val and check_secure_val(cookie_val):
-      return cookie_val
-
-  def set_secure_cookie(self, name, val):
-    cookie_val = make_secure_val(val)
-    self.response.headers.add_header(
-                                     'Set-Cookie',
-                                     '%s=%s' % (name, cookie_val))
-
-  def initialize(self, *a, **kw):
-    webapp2.RequestHandler.initialize(self, *a, **kw)
-
-    self.authenticated = False
-    self.user = None
-
-    if self.read_secure_cookie('username'):
-      un = self.read_secure_cookie('username').split('|')[0]
-
-      # if first and second arguments are both true, set self.user to user object (second argument)
-      self.user = un and get_user_by_name(un)
-
-      if self.user:
-        self.authenticated = True
-
-
-class MainPage(BlogHandler):
-  def get(self):
-    posts = db.GqlQuery('SELECT * FROM Post ORDER BY created DESC')
-
-    self.render('index.html', posts = posts, authenticated = self.authenticated, user = self.user)
-
-class PostHandler(BlogHandler):
-  def get(self, post_id):
-    post = Post.get_by_id(int(post_id))
-    comments = db.GqlQuery('SELECT * FROM Comment WHERE post = :1', post)
-
-    if post:
-      editing_target = self.request.get('editingTarget')
-      self.render('post.html', post = post, authenticated = self.authenticated, editing_target = editing_target, user = self.user, comments = comments)
-    else:
-      self.error(404)
-
-  def put(self, post_id):
-    req_data = json.loads(self.request.body)
-
-    p = Post.get_by_id(int(post_id))
-    p.subject = req_data['subject']
-    p.content = req_data['content']
-
-    p.put()
-    time.sleep(0.1)
-
-    self.response.headers['Content-Type'] = 'text'
-    self.write('Success!')
-
-  def delete(self, post_id):
-    # TODO validate that request is from user who owns this post
-    # Post.get_by_id(int(post_id)).delete()
-    # TODO bug: user was nonestype
-    logging.info(self.user)
-    username = None
-    self.response.headers['Content-Type'] = 'text'
-    if self.user:
-      username = self.user.username
-      logging.info(self.user.username)
-      self.write('Success!')
-    else:
-      self.write('Deleted, user not found')
-
-
-class NewPost(BlogHandler):
-  def get(self):
-    if not self.authenticated:
-      self.redirect('/signup')
-
-    self.render('new-post.html', authenticated = self.authenticated, user = self.user)
-
-  def post(self):
-    subject = self.request.get('subject')
-    content = self.request.get('content')
-
-    params = dict(subject = subject,
-                  content = content, 
-                  authenticated = self.authenticated)
-
-    if subject and content and len(content) > 250 and self.authenticated:
-      p = Post(subject = subject, content = content, author = self.user)
-      p.put()
-      post_id = str(p.key().id())
-
-      time.sleep(0.1)
-
-      self.redirect('/post/' + post_id)
-    else:
-      if len(content) <= 250:
-        params['error_message'] = 'Post content must contain more than 250 characters'
-      else:
-        params['error_message'] = 'An error occurred'
-
-      self.render('new-post.html', **params)
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def validate_username(username):
@@ -202,14 +84,62 @@ def valid_pw(name, pw, h):
     if make_pw_hash(name, pw, salt) == h:
         return True
 
+class Handler(webapp2.RequestHandler):
+  def write(self, *a, **kw):
+    self.response.out.write(*a, **kw)
+
+  def render_str(self, template, **params):
+    t = jinja_env.get_template(template)
+    return t.render(params)
+
+  def render(self, template, **kw):
+    self.write(self.render_str(template, **kw))
+
+class BlogHandler(Handler):
+  def read_secure_cookie(self, name):
+    cookie_val = self.request.cookies.get(name)
+    if cookie_val and check_secure_val(cookie_val):
+      return cookie_val
+
+  def set_secure_cookie(self, name, val):
+    cookie_val = make_secure_val(val)
+    self.response.headers.add_header(
+                                     'Set-Cookie',
+                                     '%s=%s' % (name, cookie_val))
+
+  def initialize(self, *a, **kw):
+    # on every request, read cookies and set user data if valid
+    webapp2.RequestHandler.initialize(self, *a, **kw)
+
+    self.authenticated = False
+    self.user = None
+
+    if self.read_secure_cookie('username'):
+      un = self.read_secure_cookie('username').split('|')[0]
+
+      # if first and second arguments are both true, set self.user to user object (second argument)
+      self.user = un and get_user_by_name(un)
+
+      if self.user:
+        self.authenticated = True
+
+
+class MainPage(BlogHandler):
+  def get(self):
+    # send posts, sorted by recent
+    posts = db.GqlQuery('SELECT * FROM Post ORDER BY created DESC')
+    self.render('index.html', posts = posts, authenticated = self.authenticated, user = self.user)
+
 class SignupHandler(BlogHandler):
   def get(self):
+    # if authenticated, redirect to user's page, else render signup page
     if self.authenticated:
       self.redirect('/users/%s' % self.user.username)
 
     self.render('signup.html')
 
   def post(self):
+    # if all fields are valid and username is unique, add user to database and set cookies
     username = self.request.get('username')
     password = self.request.get('password')
     verify = self.request.get('verify')
@@ -226,13 +156,11 @@ class SignupHandler(BlogHandler):
     valid_email = validate_email(email)
 
     if valid_username and original_username and valid_password and valid_verify and valid_email:
-      # add user to database
       u = User(username = username, password = make_pw_hash(username, password), email = email)
       u.put()
 
-      # TODO abstract setting cookies to a login function 
-      self.response.headers.add_header('Set-Cookie', 'username=%s; Path="/"' % str(make_secure_val(username)))
-      self.redirect('/welcome')
+      self.set_secure_cookie('username', username)
+      self.redirect('/')
 
     else:
       if not valid_username:
@@ -254,64 +182,130 @@ class SignupHandler(BlogHandler):
 
 class LoginHandler(BlogHandler):
   def get(self):
+    # if authenticated, redirect to user's page, else render login page
     if self.authenticated:
       self.redirect('/users/%s' % self.user.username)
 
     self.render('login.html')
 
   def post(self):
+    # if user credentials match, set cookies
     username = self.request.get('username')
     password = self.request.get('password')
 
-    # validate user
+    # validate user exists
     user = get_user_by_name(username)
     if user:
+      # validate passwords match
       valid_password = valid_pw(username, password, user.password)
 
-      # if successful, set cookie and redirect to welcome page
       if valid_password:
-        self.response.headers.add_header('Set-Cookie', 'username=%s; Path="/"' % str(make_secure_val(username)))
-        self.redirect('/welcome')
+        self.set_secure_cookie('username', username)
+        self.redirect('/')
 
     # if fail, return to login page with error message
     error_message = 'Invalid username or password'
     self.render('login.html', username = username, error_message = error_message, authenticated = self.authenticated)
 
-class WelcomeHandler(BlogHandler):
-  def get(self):
-    # validate cookie
-    # TODO make function for checking cookies on every page
-    username_cookie = self.request.cookies.get('username')
-    if username_cookie and check_secure_val(username_cookie):
-      username = username_cookie.split('|')[0]
-
-      self.render('welcome.html', username = username, authenticated = self.authenticated, user = self.user)
-    else:
-      self.redirect('/')
-
 class LogoutHandler(BlogHandler):
   def get(self):
+    # clear username cookie
     self.response.headers.add_header('Set-Cookie', 'username=; Path="/"')
     self.redirect('/signup')
 
 class AllUsersHandler(BlogHandler):
   def get(self):
+    # return all users
     users = get_all_users()
     self.render('user-index.html', users = users, authenticated = self.authenticated, user = self.user)
 
 class UserHandler(BlogHandler):
   def get(self, username):
+    # return all of a user's posts
     user = get_user_by_name(username)
 
     if user:
       posts = user.post_set
-
       self.render('user.html', posts = posts, author = username, authenticated = self.authenticated, user = self.user)
     else:
       self.error(404)
 
+class PostHandler(BlogHandler):
+  def get(self, post_id):
+    # get post by id, and its comments, sorted by recent
+    post = Post.get_by_id(int(post_id))
+    comments = db.GqlQuery('SELECT * FROM Comment WHERE post = :1 ORDER BY created DESC', post)
+
+    if post:
+      # editing target is set to post to let template know to render editing view
+      # TODO only set this if current user is author of this post
+      editing_target = self.request.get('editingTarget')
+      self.render('post.html', post = post, authenticated = self.authenticated, editing_target = editing_target, user = self.user, comments = comments)
+    else:
+      self.error(404)
+
+  def put(self, post_id):
+    # update post with new data
+    # TODO only allow if current user is author of this post
+    req_data = json.loads(self.request.body)
+
+    p = Post.get_by_id(int(post_id))
+    p.subject = req_data['subject']
+    p.content = req_data['content']
+
+    p.put()
+    time.sleep(0.1)
+
+    # TODO need better response
+    self.response.headers['Content-Type'] = 'text'
+    self.write('Success!')
+
+  def delete(self, post_id):
+    # TODO only allow if current user is author of this post
+    Post.get_by_id(int(post_id)).delete()
+
+    # TODO need better response
+    self.response.headers['Content-Type'] = 'text'
+    self.write('Success!')
+
+
+class NewPostHandler(BlogHandler):
+  def get(self):
+    # if authenticated, render new post page, otherwise redirect to signup
+    if not self.authenticated:
+      self.redirect('/signup')
+
+    self.render('new-post.html', authenticated = self.authenticated, user = self.user)
+
+  def post(self):
+    # TODO only allow if current user is author of this post
+    subject = self.request.get('subject')
+    content = self.request.get('content')
+
+    params = dict(subject = subject,
+                  content = content, 
+                  authenticated = self.authenticated)
+
+    if subject and content and len(content) > 250 and self.authenticated:
+      p = Post(subject = subject, content = content, author = self.user)
+      p.put()
+      post_id = str(p.key().id())
+
+      time.sleep(0.1)
+
+      self.redirect('/post/' + post_id)
+    else:
+      if len(content) <= 250:
+        params['error_message'] = 'Post content must contain more than 250 characters'
+      else:
+        params['error_message'] = 'An error occurred'
+
+      self.render('new-post.html', **params)
+
 class LikePostHandler(BlogHandler):
   def put(self, post_id):
+    # TODO only allow authenticated users to access
+    # toggle whether or not the current user likes a post
     p = Post.get_by_id(int(post_id))
 
     user_key = self.user.key()
@@ -326,11 +320,15 @@ class LikePostHandler(BlogHandler):
     p.put()
     time.sleep(0.1)
 
+    # TODO better response
     self.response.headers['Content-Type'] = 'text'
     self.write('Success!')
 
 class NewCommentHandler(BlogHandler):
   def post(self, post_id):
+    # TODO only allow authenticated users to access
+    # TODO move to comment handler
+    # post a new comment
     content = self.request.get('content')
 
     post = Post.get_by_id(int(post_id))
@@ -344,12 +342,16 @@ class NewCommentHandler(BlogHandler):
 
 class CommentHandler(BlogHandler):
   def delete(self, post_id, comment_id):
+    # TODO only allow authenticated users to access
+    # delete a comment
     Comment.get_by_id(int(comment_id)).delete()
 
     self.response.headers['Content-Type'] = 'text'
     self.write('Success!')
 
   def put(self, post_id, comment_id):
+    # TODO only allow authenticated users to access
+    # update a comment
 
     req_data = json.loads(self.request.body)
     c = Comment.get_by_id(int(comment_id))
@@ -362,11 +364,10 @@ class CommentHandler(BlogHandler):
     self.write('Success!')
 
 app = webapp2.WSGIApplication([('/', MainPage), 
-                              ('/newpost', NewPost),
+                              ('/newpost', NewPostHandler),
                               ('/post/(\d+)', PostHandler),
                               ('/post/(\d+)/like', LikePostHandler),
                               ('/signup', SignupHandler),
-                              ('/welcome', WelcomeHandler),
                               ('/login', LoginHandler),
                               ('/logout', LogoutHandler),
                               ('/users/', AllUsersHandler),
