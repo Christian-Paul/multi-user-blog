@@ -26,35 +26,37 @@
 			<button class='update-post btn btn-primary'>Update</button>
 			<button class='cancel-post-edit btn btn-default'>Cancel</button>
 		{% else %}
-			<h1 id='post-subject'>{{post.subject}}</h1>
-			{% if post.author.username == user.username %}
-				<button class='btn btn-primary edit-post'>Edit</button>
-				<button class='btn btn-danger delete-post' id='some-id'>Delete</button>
-			{% else %}
-				<button class='btn btn-default like-post'>
-					{% if user_key in post.likes %}
-						<span class="glyphicon glyphicon-heart" aria-hidden="true"></span>
-						<span>You like this!</span>
+			<div class='post-heading'>
+				<h1 id='post-subject'>{{post.subject}}</h1>
+				<div class="post-settings">				
+					{% if post.author.username == user.username %}
+						<span class="glyphicon glyphicon-pencil edit-post btn-lg" aria-hidden="true"></span>
+						<span class="glyphicon glyphicon-remove delete-post btn-lg" aria-hidden="true"></span>
 					{% else %}
-						<span class="glyphicon glyphicon-heart-empty" aria-hidden="true"></span>
-						<span>Like</span>
-					{% endif %}
-				</button>
-				Likes: {{post.likes|length}}
-			{% endif %}	
+						{% if user_key in post.likes %}
+							<span class="glyphicon glyphicon-heart btn-lg like-post" aria-hidden="true"></span>
+						{% else %}
+							<span class="glyphicon glyphicon-heart-empty btn-lg like-post" aria-hidden="true"></span>
+						{% endif %}
+							<span>{{post.likes|length}}</span>
+					{% endif %}	
+				</div>
+			</div>
 			<p id='post-content'>{{post.content}}</p>
 		{% endif %}
 	</div>
-	<form method='post' action='{{post.key().id()}}/comment'>
-		<h3>Add a Comment</h3>
-		<div class='form-group {{ "has-error" if error_message }}'>
-			<textarea required rows='10' class='form-control' name='content'>{{content}}</textarea>
-		</div>
-		{% if error_message %}
-			<div class='alert alert-danger' role='alert'>{{error_message}}</div>
-		{% endif %}
-		<button class='btn btn-primary'>Submit</button>
-	</form>
+	{% if authenticated and editing_target != 'post' %}
+		<form method='post' action='{{post.key().id()}}/comment'>
+			<h3>Add a Comment</h3>
+			<div class='form-group {{ "has-error" if error_message }}'>
+				<textarea required rows='10' class='form-control' name='content'>{{content}}</textarea>
+			</div>
+			{% if error_message %}
+				<div class='alert alert-danger' role='alert'>{{error_message}}</div>
+			{% endif %}
+			<button class='btn btn-primary'>Submit</button>
+		</form>
+	{% endif %}
 	<div class="comments">
 		{% for comment in comments %}
 			<div class="comment well" id='{{comment.key().id()}}'>
@@ -65,18 +67,18 @@
 					<p class="comment-time">
 						{{comment.created.strftime('%Y-%m-%d %H:%M')}}					
 					</p>
+					{% if comment.author.username == user.username %}
+						<div class="comment-settings-default">
+							<span class="glyphicon glyphicon-pencil edit-comment" aria-hidden="true"></span>
+							<span class="glyphicon glyphicon-remove delete-comment" aria-hidden="true"></span>
+						</div>
+						<div class="comment-settings-editing hide">
+							<button class='update-comment btn btn-primary'>Update</button>
+							<button class='cancel-comment-edit btn btn-default'>Cancel</button>
+						</div>
+					{% endif %}
 				</div>
 				<p class="comment-content">{{comment.content}}</p>
-				{% if comment.author.username == user.username %}
-					<div class="comment-settings-default">
-						<span class="glyphicon glyphicon-remove delete-comment" aria-hidden="true"></span>
-						<span class="glyphicon glyphicon-pencil edit-comment" aria-hidden="true"></span>
-					</div>
-					<div class="comment-settings-editing hide">
-						<button class='update-comment btn btn-primary'>Update</button>
-						<button class='cancel-comment-edit btn btn-default'>Cancel</button>
-					</div>
-				{% endif %}
 			</div>
 		{% endfor %}
 	</div>

@@ -105,7 +105,7 @@ var editComment = document.getElementsByClassName('edit-comment');
 if(editComment) {
 	for(var i = 0; i < editComment.length; i++) {
 		editComment[i].addEventListener('click', function() {
-			var commentMain = this.parentElement.parentElement;
+			var commentMain = this.parentElement.parentElement.parentElement;
 			var commentId = commentMain.id;
 			var commentOld = commentMain.querySelector('.comment-content');
 			var commentContent = commentOld.textContent;
@@ -130,7 +130,7 @@ var cancelCommentEdit = document.getElementsByClassName('cancel-comment-edit');
 if(cancelCommentEdit) {
 	for(var i = 0; i < cancelCommentEdit.length; i++) {
 		cancelCommentEdit[i].addEventListener('click', function() {
-			var commentMain = this.parentElement.parentElement;
+			var commentMain = this.parentElement.parentElement.parentElement;
 			var commentId = commentMain.id;
 			var commentOld = commentMain.querySelector('.comment-content');
 			var commentContent = commentOld.value;
@@ -154,7 +154,7 @@ var updateComment = document.getElementsByClassName('update-comment');
 if(updateComment) {
 	for(var i = 0; i < updateComment.length; i++) {
 		updateComment[i].addEventListener('click', function() {
-			var commentMain = this.parentElement.parentElement;
+			var commentMain = this.parentElement.parentElement.parentElement;
 			var commentId = commentMain.id;
 			var commentOld = commentMain.querySelector('.comment-content');
 			var commentContent = commentOld.value;

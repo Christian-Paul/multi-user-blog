@@ -225,7 +225,7 @@ class UserHandler(BlogHandler):
     user = get_user_by_name(username)
 
     if user:
-      posts = user.post_set
+      posts = db.GqlQuery('SELECT * FROM Post WHERE author = :1 ORDER BY created DESC', user)
       self.render('user.html', posts = posts, author = username, authenticated = self.authenticated, user = self.user)
     else:
       self.error(404)

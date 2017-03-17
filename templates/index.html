@@ -13,10 +13,11 @@
 	{% for post in posts %}
 		<div class="blog-entry">
 			<div class='blog-preview-header'>
-				<h2><a href=/post/{{post.key().id()}}>{{post.subject}}</a></h2>
+				<h1><a href=/post/{{post.key().id()}}>{{post.subject}}</a></h1>
 				<a href=/users/{{post.author.username}}>{{post.author.username}}</a>
 			</div>
-			<div>{{post.content[:500] + '...'}}</div>
+			<div>{{post.content[:1500] + '...'}}</div>
 		</div>
+		<hr>
 	{% endfor %}
 {% endblock %}

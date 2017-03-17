@@ -6,6 +6,28 @@
 	margin-top: 4rem;
 }
 
+.comment {
+	display: flex;
+}
+
+.comment-content {
+	margin-left: 4rem;
+}
+
 .comment-settings-editing {
 	margin-top: 1rem;
+}
+
+.post-heading {
+	display: flex;
+	justify-content: space-between;
+}
+
+.post-settings {
+	display: flex;
+	align-items: center;
+}
+
+.glyphicon {
+	cursor: pointer;
 }
