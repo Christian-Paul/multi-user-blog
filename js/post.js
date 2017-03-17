@@ -83,7 +83,8 @@ var deleteComment = document.getElementsByClassName('delete-comment');
 if(deleteComment) {
 	for(var i = 0; i < deleteComment.length; i++) {
 		deleteComment[i].addEventListener('click', function() {
-			commentId = this.parentElement.parentElement.id;
+			var commentMain = this.parentElement.parentElement.parentElement;
+			var commentId = commentMain.id;
 
 			$.ajax(currentUrl + '/comment/' + commentId, {
 				method: 'delete'
