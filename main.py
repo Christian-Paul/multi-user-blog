@@ -238,35 +238,51 @@ class PostHandler(BlogHandler):
 
     if post:
       # editing target is set to post to let template know to render editing view
-      # TODO only set this if current user is author of this post
-      editing_target = self.request.get('editingTarget')
-      self.render('post.html', post = post, authenticated = self.authenticated, editing_target = editing_target, user = self.user, comments = comments)
+      # only allow this if current user is author of this post
+      if post.author.username == (self.user and self.user.username):
+        editing_target = self.request.get('editingTarget')
+      else:
+        editing_target = None
+
+      if self.user:
+        user_key = self.user.key()
+      else:
+        user_key = None
+
+      self.render('post.html', post = post, authenticated = self.authenticated, editing_target = editing_target, user = self.user, user_key = user_key, comments = comments)
     else:
       self.error(404)
 
   def put(self, post_id):
     # update post with new data
-    # TODO only allow if current user is author of this post
+    # only allow if current user is author of this post
+    self.response.headers['Content-Type'] = 'text'
     req_data = json.loads(self.request.body)
 
     p = Post.get_by_id(int(post_id))
-    p.subject = req_data['subject']
-    p.content = req_data['content']
 
-    p.put()
-    time.sleep(0.1)
+    if p.author.username == (self.user and self.user.username):
+      p.subject = req_data['subject']
+      p.content = req_data['content']
+      p.put()
+      time.sleep(0.1)
 
-    # TODO need better response
-    self.response.headers['Content-Type'] = 'text'
-    self.write('Success!')
+      self.write('ok')
+    else:
+      self.write('error')
+
 
   def delete(self, post_id):
-    # TODO only allow if current user is author of this post
-    Post.get_by_id(int(post_id)).delete()
-
-    # TODO need better response
+    # delete post
+    # only allow if current user is author of this post
     self.response.headers['Content-Type'] = 'text'
-    self.write('Success!')
+
+    p = Post.get_by_id(int(post_id))
+    if p.author.username == (self.user and self.user.username):
+      p.delete()
+      self.write('ok')
+    else:
+      self.write('error')
 
 
 class NewPostHandler(BlogHandler):
@@ -278,90 +294,103 @@ class NewPostHandler(BlogHandler):
     self.render('new-post.html', authenticated = self.authenticated, user = self.user)
 
   def post(self):
-    # TODO only allow if current user is author of this post
-    subject = self.request.get('subject')
-    content = self.request.get('content')
+    # submit new post
+    # only allow if authenticated
+    if not self.authenticated:
+      self.response.headers['Content-Type'] = 'text'
+      self.write('error')
 
-    params = dict(subject = subject,
-                  content = content, 
-                  authenticated = self.authenticated)
-
-    if subject and content and len(content) > 250 and self.authenticated:
-      p = Post(subject = subject, content = content, author = self.user)
-      p.put()
-      post_id = str(p.key().id())
-
-      time.sleep(0.1)
-
-      self.redirect('/post/' + post_id)
     else:
-      if len(content) <= 250:
-        params['error_message'] = 'Post content must contain more than 250 characters'
-      else:
-        params['error_message'] = 'An error occurred'
+      subject = self.request.get('subject')
+      content = self.request.get('content')
 
-      self.render('new-post.html', **params)
+      params = dict(subject = subject,
+                    content = content, 
+                    authenticated = self.authenticated,
+                    user = self.user)
+
+      if subject and content and len(content) > 250 and self.authenticated:
+        p = Post(subject = subject, content = content, author = self.user)
+        p.put()
+        post_id = str(p.key().id())
+
+        time.sleep(0.1)
+
+        self.redirect('/post/' + post_id)
+      else:
+        if len(content) <= 250:
+          params['error_message'] = 'Post content must contain more than 250 characters'
+        else:
+          params['error_message'] = 'An error occurred'
+
+        self.render('new-post.html', **params)
 
 class LikePostHandler(BlogHandler):
   def put(self, post_id):
-    # TODO only allow authenticated users to access
     # toggle whether or not the current user likes a post
-    p = Post.get_by_id(int(post_id))
-
-    user_key = self.user.key()
-
-    if user_key in p.likes:
-      p.likes.remove(user_key)
-      logging.info('unliked!')
-    else:
-      p.likes.append(user_key)
-      logging.info('liked!')
-
-    p.put()
-    time.sleep(0.1)
-
-    # TODO better response
+    # only allow authenticated users to like/unlike posts
     self.response.headers['Content-Type'] = 'text'
-    self.write('Success!')
+    if not self.authenticated:
+      self.write('error')
+    else:
+      p = Post.get_by_id(int(post_id))
+      user_key = self.user.key()
+
+      if user_key in p.likes:
+        p.likes.remove(user_key)
+      else:
+        p.likes.append(user_key)
+
+      p.put()
+      time.sleep(0.1)
+      self.write('ok')
 
 class NewCommentHandler(BlogHandler):
   def post(self, post_id):
-    # TODO only allow authenticated users to access
-    # TODO move to comment handler
     # post a new comment
-    content = self.request.get('content')
+    # only allow authenticated users to access
+    if not self.authenticated:
+      self.response.headers['Content-Type'] = 'text'
+      self.write('error')
 
-    post = Post.get_by_id(int(post_id))
-    user = self.user
-    c = Comment(author = user, post = post, content = content)
+    else:
+      content = self.request.get('content')
+      post = Post.get_by_id(int(post_id))
+      user = self.user
+      c = Comment(author = user, post = post, content = content)
 
-    c.put()
-    time.sleep(0.1)
+      c.put()
+      time.sleep(0.1)
 
-    self.redirect('/post/%s' % post_id)
+      self.redirect('/post/%s' % post_id)
 
 class CommentHandler(BlogHandler):
   def delete(self, post_id, comment_id):
-    # TODO only allow authenticated users to access
     # delete a comment
-    Comment.get_by_id(int(comment_id)).delete()
-
+    # only allow author to delete comment
     self.response.headers['Content-Type'] = 'text'
-    self.write('Success!')
+    c = Comment.get_by_id(int(comment_id))
+
+    if c.author.username == (self.user and self.user.username):
+      c.delete()
+      self.write('ok')
+    else:
+      self.write('error')
 
   def put(self, post_id, comment_id):
-    # TODO only allow authenticated users to access
     # update a comment
-
+    # only allow author to update comment
     req_data = json.loads(self.request.body)
     c = Comment.get_by_id(int(comment_id))
-    c.content = req_data['content']
 
-    c.put()
-    time.sleep(0.1)
+    if c.author.username == (self.user and self.user.username):
+      c.content = req_data['content']
+      c.put()
+      time.sleep(0.1)
 
-    self.response.headers['Content-Type'] = 'text'
-    self.write('Success!')
+      self.write('ok')
+    else:
+      self.write('error')
 
 app = webapp2.WSGIApplication([('/', MainPage), 
                               ('/newpost', NewPostHandler),

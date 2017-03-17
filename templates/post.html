@@ -32,7 +32,7 @@
 				<button class='btn btn-danger delete-button' id='some-id'>Delete</button>
 			{% else %}
 				<button class='btn btn-default like-button'>
-					{% if post.likes %}
+					{% if user_key in post.likes %}
 						<span class="glyphicon glyphicon-heart" aria-hidden="true"></span>
 						<span>You like this!</span>
 					{% else %}
@@ -96,11 +96,11 @@
 
 		if(deleteButton) {
 			deleteButton.addEventListener('click', function() {
-				fetch(currentUrl, {
+				$.ajax(currentUrl, {
 					method: 'delete'
 				})
-				.then(function(res) {
-					if(res.ok) {
+				.done(function(res) {
+					if(res) {
 						console.log(res)
 						// TODO redirect to user's blog page
 					}
@@ -125,16 +125,16 @@
 				newSubject = document.getElementsByClassName('subject-input')[0].value;
 				newContent = document.getElementsByClassName('content-input')[0].value;
 
-				fetch(currentUrl, {
+				$.ajax(currentUrl, {
 					method: 'put',
 					headers: {'Content-Type': 'application/json'},
-					body: JSON.stringify({
+					data: JSON.stringify({
 						'subject': newSubject,
 						'content': newContent
 					})
 				})
-				.then(function(res) {
-					if(res.ok) {
+				.done(function(res) {
+					if(res) {
 						alert(res)
 						console.log(res)
 						// TODO redirect to post
