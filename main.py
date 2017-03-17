@@ -280,7 +280,8 @@ class PostHandler(BlogHandler):
     p = Post.get_by_id(int(post_id))
     if p.author.username == (self.user and self.user.username):
       p.delete()
-      self.write('ok')
+      time.sleep(0.1)
+      self.write(self.user.username)
     else:
       self.write('error')
 
@@ -373,6 +374,7 @@ class CommentHandler(BlogHandler):
 
     if c.author.username == (self.user and self.user.username):
       c.delete()
+      time.sleep(0.1)
       self.write('ok')
     else:
       self.write('error')
