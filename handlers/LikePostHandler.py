@@ -14,18 +14,29 @@ class LikePostHandler(BlogHandler):
   def put(self, post_id):
     # toggle whether or not the current user likes a post
     # only allow authenticated users to like/unlike posts
+    # don't allow authors to like their own posts
     self.response.headers['Content-Type'] = 'text'
     if not self.authenticated:
       self.write('error')
     else:
       p = Post.get_by_id(int(post_id))
-      user_key = self.user.key()
 
-      if user_key in p.likes:
-        p.likes.remove(user_key)
+      # make sure post exists
+      if not p:
+        self.write('error')
       else:
-        p.likes.append(user_key)
+        # make sure user is not the author of the post
+        user_key = self.user.key()
+        if p.author.username == (self.user and self.user.username):
+          self.write('error')
 
-      p.put()
-      time.sleep(0.1)
-      self.write('ok')
+        else:
+          # toggle whether the user likes the post
+          if user_key in p.likes:
+            p.likes.remove(user_key)
+          else:
+            p.likes.append(user_key)
+
+          p.put()
+          time.sleep(0.1)
+          self.write('ok')

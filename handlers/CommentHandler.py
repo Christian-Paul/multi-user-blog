@@ -18,12 +18,17 @@ class CommentHandler(BlogHandler):
     self.response.headers['Content-Type'] = 'text'
     c = Comment.get_by_id(int(comment_id))
 
-    if c.author.username == (self.user and self.user.username):
-      c.delete()
-      time.sleep(0.1)
-      self.write('ok')
-    else:
+    # make sure comment exists
+    if not c:
       self.write('error')
+    else:
+      # make sure user is the author of the comment
+      if c.author.username != (self.user and self.user.username):
+        self.write('error')
+      else:
+        c.delete()
+        time.sleep(0.1)
+        self.write('ok')
 
   def put(self, post_id, comment_id):
     # update a comment
@@ -31,11 +36,17 @@ class CommentHandler(BlogHandler):
     req_data = json.loads(self.request.body)
     c = Comment.get_by_id(int(comment_id))
 
-    if c.author.username == (self.user and self.user.username):
-      c.content = req_data['content']
-      c.put()
-      time.sleep(0.1)
-
-      self.write('ok')
-    else:
+    # make sure comment exists
+    if not c:
       self.write('error')
+
+    else:
+      # make sure user is the author of the comment
+      if c.author.username != (self.user and self.user.username):
+        self.write('error')
+      else:
+        c.content = req_data['content']
+        c.put()
+        time.sleep(0.1)
+
+        self.write('ok')

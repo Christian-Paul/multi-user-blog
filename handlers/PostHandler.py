@@ -46,15 +46,20 @@ class PostHandler(BlogHandler):
 
     p = Post.get_by_id(int(post_id))
 
-    if p.author.username == (self.user and self.user.username):
-      p.subject = req_data['subject']
-      p.content = req_data['content']
-      p.put()
-      time.sleep(0.1)
-
-      self.write('ok')
-    else:
+    # make sure post exists
+    if not p:
       self.write('error')
+    else:
+      # make sure the user is the author of the post
+      if p.author.username != (self.user and self.user.username):
+        self.write('error')
+      else:
+        p.subject = req_data['subject']
+        p.content = req_data['content']
+        p.put()
+        time.sleep(0.1)
+
+        self.write('ok')
 
 
   def delete(self, post_id):
@@ -63,9 +68,15 @@ class PostHandler(BlogHandler):
     self.response.headers['Content-Type'] = 'text'
 
     p = Post.get_by_id(int(post_id))
-    if p.author.username == (self.user and self.user.username):
-      p.delete()
-      time.sleep(0.1)
-      self.write(self.user.username)
-    else:
+
+    # make sure post exists
+    if not p:
       self.write('error')
+    else:
+      # make sure the user is the author of the post
+      if p.author.username != (self.user and self.user.username):
+        self.write('error')
+      else:
+        p.delete()
+        time.sleep(0.1)
+        self.write(self.user.username)

@@ -21,10 +21,15 @@ class NewCommentHandler(BlogHandler):
     else:
       content = self.request.get('content')
       post = Post.get_by_id(int(post_id))
-      user = self.user
-      c = Comment(author = user, post = post, content = content)
 
-      c.put()
-      time.sleep(0.1)
+      # make sure post exists
+      if not post:
+        self.write('error')
+      else:
+        user = self.user
+        c = Comment(author = user, post = post, content = content)
 
-      self.redirect('/post/%s' % post_id)
+        c.put()
+        time.sleep(0.1)
+
+        self.redirect('/post/%s' % post_id)
